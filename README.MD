@@ -62,6 +62,9 @@ In the case of a recipe book or stockroom catalog, `filename` is set to `title`,
 
 So what happens if our title contains "../"?
 
+*== Renaming within the Stockroom Catalog interface will prepend a formatting code, you must rename in an anvil/other*
+
+
 *The data of a Stockroom Catalog named "../My Cool Catalog!" in "world/":*
 
 ![](screenshot2.png)
