@@ -1,0 +1,16 @@
+[
+{
+  "modid": "BiblioPOC",
+  "name": "Exo's test mod. 2",
+  "description": "Example placeholder mod.",
+  "version": "${version}",
+  "mcversion": "1.7.10",
+  "url": "",
+  "updateUrl": "",
+  "authorList": ["Exopteron"],
+  "credits": "",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": []
+}
+]
