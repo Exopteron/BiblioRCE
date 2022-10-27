@@ -73,6 +73,9 @@ So what happens if our title contains "../"?
 
 The second mod used in this proof-of-concept is [CoreTweaks](https://github.com/makamys/CoreTweaks). Specifically the transformer cache.
 
+It is **NOT** an essential part of the overall exploit, it is only a method of code execution using file manipulation. You may still be vulnerable without it installed!
+
+
 Within "*\<server-directory\>*/coretweaks/cache" is the file "transformerCache.dat".
 
 This is a `HashMap<String, TransformerData>` serialized to disk by a Java serialization library called [Kryo](https://github.com/EsotericSoftware/kryo), loaded at startup by CoreTweaks and used to assist in speeding up class transformation.
