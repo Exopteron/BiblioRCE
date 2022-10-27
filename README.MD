@@ -4,6 +4,7 @@
 
 ## Impact
 Code execution is possible. Likely through multiple ways, but the one I found is outlined below.
+This affects BiblioCraft 1.7.10 v1.11.7 (confirmed) and likely all BiblioCraft versions prior to v2.4.6 (unconfirmed, untested)
 
 
 ## Details
