@@ -179,4 +179,7 @@ kryo2.writeClassAndObject(output, data);
 
 To ensure we get the right order of the tags in the output, since String hashing is deterministic we can try over and over with different keys for the int and byte array tags until they are serialized in the order we want. This allows us to generate a valid `transformerCache.dat` and write it to the correct location. (The server will need to be terminated abnormally (such as by `kill -9`), as CoreTweaks overwrites this file in a shutdown hook)
 
+*== Filling up the server's memory with live objects which cannot be reclaimed by the garbage collector ***may*** be another way to cause an abnormal termination (could be done by spawning large amounts of entities, etc)*
+
+
 When this file is loaded by CoreTweaks, any class transformations we specified will be applied, so we can execute any JVM code we like.
