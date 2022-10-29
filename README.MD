@@ -1,5 +1,6 @@
 # An oversight within BiblioCraft which allows restricted server-side file manipulation.
 
+***NEW: I have managed to get code execution by writing a specially encoded JAR to the `mods/` directory. This does not require any quirks such as abnormal JVM termination or a companion mod to work. More details and a new proof of concept soon.*** 
 
 
 ## Impact
