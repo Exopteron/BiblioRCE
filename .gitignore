@@ -2,3 +2,5 @@
 /BiblioPOC/.gradle
 /BiblioPOC/build
 /BiblioPOC/libs/Biblio.jar
+/BiblioPOC/tools/__pycache__
+/BiblioPOC/tools/out

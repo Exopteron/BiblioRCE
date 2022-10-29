@@ -1,186 +1,107 @@
 # An oversight within BiblioCraft which allows restricted server-side file manipulation.
 
-***NEW: I have managed to get code execution by writing a specially encoded JAR to the `mods/` directory. This does not require any quirks such as abnormal JVM termination or a companion mod to work. More details and a new proof of concept soon.*** 
+
+***This method only requires BiblioCraft! Not too much trickery and no other mods are required to achieve code execution!***
+
+# CoreTweaks
+The original writeup focused on CoreTweaks can be found [here](CORETWEAKS_METHOD.MD). I recommend you read this first as I may skip some details that will be important below.
+
 
 
 ## Impact
-Code execution is possible. Likely through multiple ways, but the one I found is outlined below.
+Code execution is possible through multiple methods.
 This affects BiblioCraft 1.7.10 v1.11.7 (confirmed) and likely all BiblioCraft versions prior to v2.4.6 (unconfirmed, untested)
 
+**Existing patches that fix the path traversal bug will still prevent this new code execution path.**
 
 ## Details
-BiblioCraft has a Typesetting Table block which allows saving/loading book data from disk.
+This time we are focusing on Vanilla written book saving.
 
-On a dedicated server, book data is stored within "*\<world-folder\>*/books/".
-For vanilla books, the file name is set to "*\<player-name\>*, *\<book-title\>*".
+Written books are saved to `world/books/<author-name>, <book-title>`.
 
-For certain special books such as Recipe Books, two files are written.
+The format of these books is, per line:
 
-One, named "*\<book-title\>*" stores metadata about the book. (public/private status, book type etc.)
+1. \<book-title\>
+2. \<author-name\>
+3. \<book-privacy\>
 
-The other, named "*\<book-title\>*.dat" stores the book's NBT tag, uncompressed.
+Continuing on from the start, pages of the book are started with a marker `#pgx<page-number>` and from the next line until the next marker is part of that page. BiblioCraft will always add a newline at the end of lines, even if nothing follows.
 
-*The data of a big book by "Player" named "My Cool Book!" in "world/books/":*
+Like before, we can control both the book title and author name through the book's NBT tag as well as perform path traversal.
 
-![](screenshot1.png)
+## Obtaining Code Execution
 
+The place we are going to write to is the `mods/` folder. Mods in this directory are most often stored as JAR files. A neat property of JAR files is that they are actually just ZIP files in disguise. 
 
-## The Exploit
-Very roughly, the code that saves the book data looks like:
+So, why does that help us?
+
+ZIP files have an interesting property where they can still be valid even with garbage data prepended/appended to themselves.
+
+The [EOCD](https://en.wikipedia.org/wiki/ZIP_(file_format)#End_of_central_directory_record_(EOCD)) (End of central directory) record within a ZIP file is placed at the end.
+
+It (roughly) consists of a magic/signature `0x06054b50`, as well as the number, size, and offset of the central directory records within the archive.
+
+The final field in an EOCD record is a length-prefixed comment, which can be almost any byte sequence that isn't the magic *(untested)*.
+
+*(I think ZIP file parsers start from the end and search for the EOCD signature to parse the archive, but I am not entirely sure.)*
+
+If all the ZIP parser needs to find the files within the archive is the EOCD record, and if any data *(with limitations)* can follow the EOCD record, then we can make a valid ZIP even if there is some other data within the file.
+
+### Writing the JAR
+
+*(Huge credit to [https://github.com/c0ny1/ascii-jar](https://github.com/c0ny1/ascii-jar)! I used these tools heavily!)*
+
+First, we need to structure our payload. Forge will load classes as mods if they have the special annotation `@Mod`, so we'll use that here.
+
+*Our rough payload:*
 ```java
-boolean saveBook(ItemStack book, String type) {
-    NBTTagCompound nbt = book.getTagCompound();
-    String filename = "";
-    String title = book.getDisplayName();
-    boolean savedMeta = false;
-    switch (type) {
-        case "BigBook":
-            String author = nbt.getString("author");
-            filename = author + ", " + title;
-            savedMeta = saveMetadata(...);
-            break; 
-        case "RecipeBook":
-            filename = title;
-            savedMeta = saveMetadata(...);
-            break;
-        case "Stockroom":
-            filename = title;
-            savedMeta = saveMetadata(...);
-            break;
-        default:
-            return false;
+@Mod(modid = "payload-mod")
+public class Payload {
+    // ...
+    static {
+        System.out.println("Hello World!");
     }
-
-    if (savedMeta) {
-        File output = new File(getBookDir(), filename + ".dat");
-        writeNBTToFile(nbt, output);
-    }
+    // ...
 }
 ```
 
-There is an issue with this code.
-In the case of a recipe book or stockroom catalog, `filename` is set to `title`, which would the book's display name/title.
+To avoid encoding issues, we use a script to create an ASCII-only JAR file containing only our payload class.
 
-So what happens if our title contains "../"?
+We pad the beginning with `PK\3\4.jar\n../../mods/\nprivate\n#pgx0\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA`
 
-*== Renaming within the Stockroom Catalog interface will prepend a formatting code, you must rename in an anvil/other*
+*The reason we prepend `PK\3\4` (the local file header signature of ZIP) to the padding is due to a strange oddity in Forge that I could not reproduce outside where JAR files are checked to begin with this signature, despite this not being a requirement of ZIP? May be a bug in Forge.*
 
-
-*The data of a Stockroom Catalog named "../My Cool Catalog!" in "world/":*
-
-![](screenshot2.png)
-
-## The Proof of Concept
-
-The second mod used in this proof-of-concept is [CoreTweaks](https://github.com/makamys/CoreTweaks). Specifically the transformer cache.
-
-It is **NOT** an essential part of the overall exploit, it is only a method of code execution using file manipulation. You may still be vulnerable without it installed!
+We use the long string of 'A's and 'a's to make sure the offset is greater than 255, ensuring the 2-byte integer encoding the offset has no bytes outside of ASCII range.
 
 
-Within "*\<server-directory\>*/coretweaks/cache" is the file "transformerCache.dat".
-
-This is a `HashMap<String, TransformerData>` serialized to disk by a Java serialization library called [Kryo](https://github.com/EsotericSoftware/kryo), loaded at startup by CoreTweaks and used to assist in speeding up class transformation.
+We pad the end with `\n` to avoid problems with BiblioCraft adding newlines.
 
 
-## (Simplified version of) The Kryo File Format
+With our new padded jar, we take all of the bytes following the last newline of the data we padded the beginning with and create a new String from it (we will call this *\<jar-data\>*) and create a new written book with NBT data:
 
-The first element of a serialized map is a VarInt (variable-length integer) denoting how many key/value pairs exist within the map.
-
-What follows are the key/value pairs.
-
-Each serialized value within the map is prefixed by a VarInt type ID which tells the deserializer its type.
-
-For strings, that ID is 3.  
-
-
-
-## Deserializing strings
-* If the string is null, the first byte will be (0 | 0x80).
-* If the string is empty, the first byte will be (1 | 0x80).
-
-If the string is ASCII-only, the first byte will not have the eighth bit set, and the deserializer will continue to read bytes until it finds a byte that does have the eighth bit set, and it will return a string made from the bytes read.
-
-## Deserializing objects
-
-All we need to know is that a 0 type ID always seems to mean null.
-
-## The NBT file format
-
-The [Named Binary Tag](https://wiki.vg/NBT) (NBT) is very simple.
-
-Each datatype has a byte tag used to recognise it.
-
-The top-level tag in a serialized NBT blob will always be a compound tag (ID 10). 
-
-Compound tags (ID 10) are lists of named tags.
-
-Each tag within the compound tag is prefixed by its type ID, then the length of its name as a big-endian 2-byte integer, then its name in [modified UTF-8](https://docs.oracle.com/javase/8/docs/api/java/io/DataInput.html#modified-utf-8).
-
-Int tags (ID 3) are signed 32 bit integers encoded in big-endian format.
-
-Byte array tags (ID 7) are byte arrays prefixed by their length as a signed 32-bit integer encoded in big-endian format.
-
-
-## Mashing formats together
-
-So, how do we construct a valid serialized Kryo HashMap when all we can write is NBT?
-
-Let's say our NBT blob is something like
 ```
   TAG_Compound(''): 2 entries
   {
-    TAG_Int(<int-tag-name>): 0
-    TAG_Byte_Array(<byte-array-tag-name>): <bytes>
+    TAG_String("author"): "../../mods/"
+    TAG_String("title"): "PK\3\4.jar"
+    TAG_List("pages"): 1 entry
+    {
+        TAG_String(None): "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" + <jar-data>
+    }
   }
-
 ```
 
+When we save this book to disk through BiblioCraft, all of the padding data will be "regenerated" by its format, making our JAR valid again.
 
-Well, let's think back.
+And now, the next time the server reboots *(even a normal restart, or if you cause a crash)* our mod JAR will be loaded and our code will be executed.
 
-* The first element of the Kryo format is a VarInt.
-* The first byte of the NBT blob is 10 (0x0A).
+## Proof of concept usage
 
-That's a valid VarInt denoting the value 10!
+In `BiblioPOC/tools/` there is a Python3 script to assist in generating a valid payload.
 
-The next two bytes of the NBT blob are the length of its name. With an empty name, these two bytes would be zero.
+The arguments are:
 
+`python3 create_payload.py [java_file] [forge_jar_location] [class_name] [output_dir]`   
 
-The Kryo deserializer would see the two zero bytes, and parse a null key and a null value.
-
-
-The next byte would be the tag type of the int, which is 3. The Kryo type ID for a String is too, 3.
-
-The next two bytes would be the length of the string denoting the int tag's name. As long as those two bytes don't have their eighth bit set, they will be treated as part of the String being parsed by Kryo. Same with the name of the int tag.
-
-What follows is the integer value. This can be anything as long as none of its bytes have their eighth bit set.
-
-The next element in the compound tag is the byte array tag. This has an ID of 7, which does not have its eighth bit set so it is still part of the String being parsed by Kryo.
-
-Next is its name, which follows the same rules as the int tag's name.
-
-Next is the byte array length, which must not contain any bytes with the eighth bit set.
-
-Finally is our byte array. Following that, the compound tag is ended by a 0 byte, but we don't need to worry about that.
-
-For the first byte in our byte array, we will end the Kryo String by setting the eighth bit.
-
-Now the second byte can just be a zero, for a null value.
-
-From here on, we take advantage of Kryo to do the rest of serialization.
-
-In pseudo-Java:
-```java
-Output output = ...;
-Kryo kryo = new Kryo();
-kryo2.writeClassAndObject(output, <hashmap-key>);
-TransformerData data = ...;
-kryo2.writeClassAndObject(output, data);
-```
-
-To ensure we get the right order of the tags in the output, since String hashing is deterministic we can try over and over with different keys for the int and byte array tags until they are serialized in the order we want. This allows us to generate a valid `transformerCache.dat` and write it to the correct location. (The server will need to be terminated abnormally (such as by `kill -9`), as CoreTweaks overwrites this file in a shutdown hook)
-
-*== Filling up the server's memory with live objects which cannot be reclaimed by the garbage collector ***may*** be another way to cause an abnormal termination (could be done by spawning large amounts of entities, etc)*
-
-
-When this file is loaded by CoreTweaks, any class transformations we specified will be applied, so we can execute any JVM code we like.
+Then, when in-game while holding a BiblioCraft atlas execute
+`/jarpoccommand [completed_jar_path]` where `[completed_jar_path]` is the path to `[output_dir]/completed.jar`.

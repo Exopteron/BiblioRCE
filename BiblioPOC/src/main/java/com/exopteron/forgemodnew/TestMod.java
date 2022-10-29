@@ -25,6 +25,7 @@ public class TestMod {
     @EventHandler
     public void init(FMLPostInitializationEvent event) {
         ClientCommandHandler.instance.registerCommand(new POCExploitCommand());
+        ClientCommandHandler.instance.registerCommand(new JarPOCCommand());
     }
     @EventHandler
     public void wrold(FMLServerStartingEvent e) {
