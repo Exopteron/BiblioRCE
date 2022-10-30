@@ -22,7 +22,7 @@ def main():
 
     ascii_jar_loc = os.path.join(args.output_dir, "ascii-encoded.jar")
     with open(args.java_file, "rb") as java_file:
-        asciijar1.do_ascii('A', f"{args.class_name}.class", f"{args.class_name}.class", ascii_jar_loc, args.forge_jar_location, args.class_name, java_file.read().decode("utf-8"))
+        asciijar1.do_ascii('B', f"{args.class_name}.class", f"{args.class_name}.class", ascii_jar_loc, args.forge_jar_location, args.class_name, java_file.read().decode("utf-8"))
     with open(ascii_jar_loc, "rb") as ascii_jar_file:
         padded_data = paddingzip.do_zip_mod(ascii_jar_file.read(), PREFIX_DATA, SUFFIX_DATA)
         with open(os.path.join(args.output_dir, "test.out"), "wb") as outf:
