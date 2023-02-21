@@ -10,7 +10,7 @@ SUFFIX_DATA = "\n"
 
 def main():
     arg_parser = argparse.ArgumentParser(prog = "create_payload", description = "Generates a payload folder")
-    arg_parser.add_argument('java_file')
+    arg_parser.add_argument('java_file', help = 'The Java file payload. Must contain a space for padding data.')
     arg_parser.add_argument('forge_jar_location')
     arg_parser.add_argument('class_name')
     arg_parser.add_argument('output_dir')

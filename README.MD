@@ -10,7 +10,7 @@ The original writeup focused on CoreTweaks can be found [here](CORETWEAKS_METHOD
 
 ## Impact
 Code execution is possible through multiple methods.
-This affects BiblioCraft 1.7.10 v1.11.7 (confirmed) and likely all BiblioCraft versions prior to v2.4.6 (unconfirmed, untested)
+This affects BiblioCraft 1.7.10 v1.11.7 and BiblioCraft 1.12.2 v2.4.5 (confirmed) and likely all BiblioCraft versions prior to v2.4.6 (unconfirmed, untested)
 
 **Existing patches that fix the path traversal bug will still prevent this new code execution path.**
 

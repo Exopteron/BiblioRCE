@@ -16,6 +16,8 @@ for b in range(0,128): # ASCII
 
 
 def do_ascii(padding_char, raw_filename, zip_entity_filename, jar_filename, forge_jar_path, class_name, orig_java_code):
+    if not "{PADDING_DATA}" in orig_java_code:
+        raise Exception("Java file must contain space for padding, e.g:\nstatic final String A = \"{PADDING_DATA}\";")
     num = 1
     while True:
         # step1 动态生成java代码并编译
