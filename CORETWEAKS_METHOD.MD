@@ -164,9 +164,9 @@ In pseudo-Java:
 ```java
 Output output = ...;
 Kryo kryo = new Kryo();
-kryo2.writeClassAndObject(output, <hashmap-key>);
+kryo.writeClassAndObject(output, <hashmap-key>);
 TransformerData data = ...;
-kryo2.writeClassAndObject(output, data);
+kryo.writeClassAndObject(output, data);
 ```
 
 To ensure we get the right order of the tags in the output, since String hashing is deterministic we can try over and over with different keys for the int and byte array tags until they are serialized in the order we want. This allows us to generate a valid `transformerCache.dat` and write it to the correct location. (The server will need to be terminated abnormally (such as by `kill -9`), as CoreTweaks overwrites this file in a shutdown hook)
